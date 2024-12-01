@@ -1,6 +1,6 @@
 # 忽略 legacy 和 test_data 資料夾
 legacy/
-test_data - 捷徑/
+test_data_shortcut/
 
 # 忽略特定檔案
 hook-tkinterdnd2.py
