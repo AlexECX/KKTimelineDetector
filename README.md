@@ -54,3 +54,8 @@ If you have insights into more accurate detection methods or understand the unde
 - Contact me with your findings
 
 Your contributions to improving the accuracy of this tool would be greatly appreciated!
+
+
+## License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.
