@@ -39,14 +39,14 @@ The detector uses string matching to identify different types of scene data:
 
 ## Known Limitations and Areas for Improvement
 
-1. **No Timeline Classification**
-   - Current Issue: Unable to distinguish between static and dynamic images in the "no timeline" category
-   - Seeking: Alternative methods to detect motion/animation in these files
+1. **Classification of Scenes Without Timeline Data**  
+   - **Current Issue:** There is currently no effective method to differentiate between static and dynamic scenes in files without timeline data (which are predominantly static).  
+   - **Improvement Needed:** Investigate and implement alternative techniques to accurately identify motion or animation in these files.
 
-2. **Timeline Type Detection**
-   - Current Method: Uses string matching ("timeline" vs "Timeline")
-   - Limitation: While mostly accurate, this method has some edge cases where it might misclassify
-   - Seeking: More reliable methods to distinguish between static and dynamic timeline data
+2. **Distinguishing Static and Dynamic Timeline Data**  
+   - **Current Method:** The tool uses string matching between "timeline" and "Timeline" to differentiate static from dynamic scenes in files with timeline data (which are mostly dynamic).  
+   - **Limitation:** While this approach is generally effective, there are occasional misclassifications in certain edge cases.  
+   - **Improvement Needed:** Develop a more robust method for distinguishing between static and dynamic scenes to enhance classification accuracy.
 
 If you have insights into more accurate detection methods or understand the underlying file structure that could provide better classification, please:
 - Open an issue on GitHub

@@ -6,16 +6,16 @@
     <title>Timeline Detector</title>
     <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
     <script defer src="https://pyscript.net/latest/pyscript.js"></script>
-    <link rel="stylesheet" href="./style.css"> <!-- 更新路徑 -->
+    <link rel="stylesheet" href="style.css">
     <py-config>
         packages = []
     </py-config>
 </head>
-<body>
+<body id="dropZone">
     <div class="container">
         <h1>Timeline Detector</h1>
         
-        <div id="dropZone" class="drop-zone">
+        <div class="upload-area">
             <div class="drop-text">Drag and Drop or Upload Scene Data here</div>
             <input type="file" id="fileInput" accept=".png,.PNG" />
         </div>
@@ -30,7 +30,6 @@
             <div id="durationInfo" class="result-item"></div>
         </div>
     </div>
-
-    <py-script src="./detector.py"></py-script> <!-- 更新路徑 -->
+    <py-script src="./detector.py"></py-script>
 </body>
 </html>

@@ -6,6 +6,7 @@ test_data_shortcut/
 hook-tkinterdnd2.py
 Timeline_detector.exe
 test_data_shortcut.lnk
+logic.txt
 # 忽略暫存或系統檔案
 *.pyc
 *.pyo

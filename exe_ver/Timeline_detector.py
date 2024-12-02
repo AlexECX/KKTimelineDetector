@@ -134,27 +134,40 @@ class App(TkinterDnD.Tk):
         if file_path:
             self.process_file(file_path)
 
-    def handle_drop(self, event):
+    def handle_drop(self, event, *args):
+        """
+        Handle the drag-and-drop event.
+        Ensure that the input is a single .png file and not a folder.
+        """
         file_paths = event.data
+        # Parse file paths from the event
         if '{' in file_paths:
             paths = [p.strip('{}') for p in file_paths.split('} {')]
         else:
             paths = file_paths.split()
-        
+
+        # Check if multiple files or folders are provided
         if len(paths) > 1:
+            for path in paths:
+                if os.path.isdir(path):
+                    messagebox.showerror("Error", "Please do not upload folders. Upload one .png file at a time.")
+                    return
             messagebox.showerror("Error", "Please upload only one .png file at a time.")
             return
-        
+
+        # Validate single file path
         file_path = paths[0]
-        
         if os.path.isdir(file_path):
             messagebox.showerror("Error", "Please do not upload folders. Upload one .png file at a time.")
             return
-            
-        if file_path.lower().endswith('.png'):
-            self.process_file(file_path)
-        else:
+
+        if not file_path.lower().endswith('.png'):
             messagebox.showerror("Error", "Please upload .png files only.")
+            return
+        
+        self.process_file(file_path)
+
+
 
 
 
@@ -168,7 +181,7 @@ class App(TkinterDnD.Tk):
         if not detector.is_scene_data(content_str):
             messagebox.showerror("Error", "Please upload Scene Data only.")
             return
-            
+        
         self.filename_label.configure(text="")
         self.timeline_label.configure(text="")
         self.duration_label.configure(text="")
