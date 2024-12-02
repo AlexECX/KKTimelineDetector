@@ -12,38 +12,47 @@ class TimelineDetector:
         """檢查是否為scene data"""
         return "KStudio" in content_str
         
-    def check_timeline(self, content_str: str) -> tuple[str, float]:
-        """檢查timeline類型並返回timeline狀態和duration"""
-        # 檢查是否有任一種timeline
-        if "Timeline" in content_str or "timeline" in content_str:
-            # 檢查duration
-            if "duration" in content_str:
-                dur_pos = content_str.find("duration")
-                search_pos = dur_pos + len("duration")
-                
-                while search_pos < len(content_str):
-                    if content_str[search_pos].isdigit():
-                        num_start = search_pos
-                        num_end = num_start
-                        while num_end < len(content_str) and (content_str[num_end].isdigit() or content_str[num_end] == '.'):
-                            num_end += 1
-                        try:
-                            duration = float(content_str[num_start:num_end])
-                            return "has_timeline", duration
-                        except ValueError:
-                            return "has_timeline", None
-                    search_pos += 1
-                return "has_timeline", None
-            return "has_timeline", None
-        return "no_timeline", None
-
+    def check_timeline(self, content_str: str) -> tuple[str, str, float]:
+            """
+            檢查timeline類型並返回timeline狀態和duration
+            Returns: 
+                tuple (timeline_status, image_type, duration)
+                timeline_status: "has_timeline" 或 "no_timeline"
+                image_type: "dynamic", "static" 或 None
+                duration: float 或 None
+            """
+            if "timeline" in content_str:  # 先檢查是否有timeline
+                # 檢查是否為static (沒有Timeline就是static)
+                if "Timeline" not in content_str:
+                    return "has_timeline", "static", None
+                else:
+                    # 是dynamic，檢查duration
+                    if "duration" in content_str:
+                        dur_pos = content_str.find("duration")
+                        search_pos = dur_pos + len("duration")
+                        
+                        while search_pos < len(content_str):
+                            if content_str[search_pos].isdigit():
+                                num_start = search_pos
+                                num_end = num_start
+                                while num_end < len(content_str) and (content_str[num_end].isdigit() or content_str[num_end] == '.'):
+                                    num_end += 1
+                                try:
+                                    duration = float(content_str[num_start:num_end])
+                                    return "has_timeline", "dynamic", duration
+                                except ValueError:
+                                    return "has_timeline", "dynamic", None
+                            search_pos += 1
+                    return "has_timeline", "dynamic", None
+            return "no_timeline", None, None
 class App(TkinterDnD.Tk):
     def __init__(self):
         super().__init__()
         self.title("Timeline Detector")
-        self.geometry("400x500")  # 調整成更適合的高度
+        self.geometry("400x500")
         self.configure(bg='white')
         self.setup_ui()
+
     def setup_ui(self):
         # Drop zone frame with border
         self.drop_frame = ttk.Frame(self)
@@ -81,7 +90,7 @@ class App(TkinterDnD.Tk):
         self.filename_label = ttk.Label(self.result_frame, text="")
         self.filename_label.pack(pady=5)
         
-        # Image preview - 使用 tk.Label 而不是 ttk.Label 以便顯示圖片
+        # Image preview
         self.image_label = tk.Label(self.result_frame)
         self.image_label.pack(pady=10)
         
@@ -99,108 +108,92 @@ class App(TkinterDnD.Tk):
 
     def show_preview(self, file_path):
         try:
-            # 使用 tkinter 的 PhotoImage 直接載入 PNG
             photo = tk.PhotoImage(file=file_path)
             
-            # 獲取圖片尺寸
             width = photo.width()
             height = photo.height()
             
-            # 計算縮放比例，最大顯示尺寸為 300x300
             max_size = 300
             scale = min(max_size/width, max_size/height)
             
             if scale < 1:
-                # 如果需要縮小，創建一個新的縮小版本
                 new_width = int(width * scale)
                 new_height = int(height * scale)
                 photo = photo.subsample(int(1/scale))
             
-            # 更新圖片顯示
             self.image_label.configure(image=photo)
-            self.image_label.image = photo  # 保持引用以防止被垃圾回收
+            self.image_label.image = photo
             
-        except Exception as e:
-            print(f"Error showing preview: {e}")
-            self.image_label.configure(image="")  # 清除圖片
-
+        except:
+            self.image_label.configure(image="")
 
     def browse_file(self):
         file_path = filedialog.askopenfilename(
-            filetypes=[("PNG files", "*.png")]
+            filetypes=[(".png files", "*.png *.PNG")]
         )
         if file_path:
             self.process_file(file_path)
 
     def handle_drop(self, event):
         file_paths = event.data
-        # 將路徑字符串轉換為列表
         if '{' in file_paths:
-            # Windows 風格的多個文件路徑會用空格分隔並用{}包圍
             paths = [p.strip('{}') for p in file_paths.split('} {')]
         else:
-            # Unix 風格的多個文件路徑會用空格分隔
             paths = file_paths.split()
         
-        # 檢查是否嘗試上傳多個文件
         if len(paths) > 1:
-            messagebox.showerror("Error", "Please upload only one file at a time.")
+            messagebox.showerror("Error", "Please upload only one .png file at a time.")
             return
         
         file_path = paths[0]
-        # 檢查是否為資料夾
+        
         if os.path.isdir(file_path):
-            messagebox.showerror("Error", "Please upload only one file at a time.")
+            messagebox.showerror("Error", "Please do not upload folders. Upload one .png file at a time.")
             return
             
-        # 檢查文件類型
-        if file_path.endswith('.png'):
+        if file_path.lower().endswith('.png'):
             self.process_file(file_path)
         else:
-            messagebox.showerror("Error", "Please upload PNG files only.")
+            messagebox.showerror("Error", "Please upload .png files only.")
+
+
 
     def process_file(self, file_path):
-        try:
-            # Read file content
-            with open(file_path, 'rb') as f:
-                content = f.read()
-                content_str = content.decode('utf-8', errors='ignore')
+        with open(file_path, 'rb') as f:
+            content = f.read()
+            content_str = content.decode('utf-8', errors='ignore')
+        
+        detector = TimelineDetector(file_path)
+        
+        if not detector.is_scene_data(content_str):
+            messagebox.showerror("Error", "Please upload Scene Data only.")
+            return
             
-            detector = TimelineDetector(file_path)
-            
-            # Check if it's a scene data file
-            if not detector.is_scene_data(content_str):
-                messagebox.showerror("Error", "Please upload Scene Data only.")
-                return  # 不清除之前的顯示內容
-                
-            # 只有在確認是scene data後才清除之前的顯示
-            self.filename_label.configure(text="")
-            self.timeline_label.configure(text="")
-            self.duration_label.configure(text="")
-            
-            # Show filename
-            filename = os.path.basename(file_path)
-            self.filename_label.configure(text=filename)
+        self.filename_label.configure(text="")
+        self.timeline_label.configure(text="")
+        self.duration_label.configure(text="")
+        
+        filename = os.path.basename(file_path)
+        self.filename_label.configure(text=filename)
 
-            # Show preview
-            self.show_preview(file_path)
-            # Process timeline information
-            timeline_status, duration = detector.check_timeline(content_str)
-            
-            if timeline_status == "has_timeline":
-                self.timeline_label.configure(text="has timeline", 
-                                           foreground="green")
+        self.show_preview(file_path)
+        
+        timeline_status, image_type, duration = detector.check_timeline(content_str)
+        
+        if timeline_status == "has_timeline":
+            self.timeline_label.configure(text="has timeline", 
+                                       foreground="green")
+            if image_type == "static":
+                self.duration_label.configure(text="static image")
+            else:  # dynamic
                 if duration is not None:
                     type_text = "GIF" if duration <= 10 else "movie"
                     self.duration_label.configure(
                         text=f"{type_text} (duration:{duration}s)")
-            else:
-                self.timeline_label.configure(text="no timeline", 
-                                           foreground="red")
-                
-        except Exception as e:
-            messagebox.showerror("Error", f"Error processing file: {str(e)}")
-
+        else:  # no timeline
+            self.timeline_label.configure(text="no timeline", 
+                                       foreground="red")
+            self.duration_label.configure(text="")
 def main():
     app = App()
     app.mainloop()

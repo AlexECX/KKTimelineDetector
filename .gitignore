@@ -5,7 +5,7 @@ test_data_shortcut/
 # 忽略特定檔案
 hook-tkinterdnd2.py
 Timeline_detector.exe
-
+test_data_shortcut.lnk
 # 忽略暫存或系統檔案
 *.pyc
 *.pyo
