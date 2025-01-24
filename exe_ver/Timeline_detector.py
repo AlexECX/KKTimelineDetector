@@ -1,16 +1,30 @@
+import re
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
+import typing
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
 
 class TimelineDetector:
+
+    _timeline_pattern = re.compile(rb'timeline.+?sceneInfo(?P<flag>.*?)(?P<data><root\b[^>]*?>.*?</root>)', re.DOTALL)
+    _duration_pattern = re.compile(rb'duration="([\d\.]+)"')
+    _animation_pattern = re.compile(rb'guideObjectPath="([^"]+)"')
+    
     def __init__(self, file_path: str = None):
         self.file_path = file_path
         
-    def is_scene_data(self, content_str: str) -> bool:
+    def is_scene_data(self, content: bytes) -> bool:
         """檢查是否為scene data"""
-        return "KStudio" in content_str
+        return b"KStudio" in content
+    
+    def get_timeline_xml(self, content: bytes) -> typing.Optional[bytes]:
+        match = self.timeline_regex.search(content)
+        if match and b'</root>' in match.group("data"):
+            return match.group("data")
+        else:
+            return None            
         
     def check_timeline(self, content_str: str) -> tuple[str, str, float]:
             """
@@ -18,33 +32,25 @@ class TimelineDetector:
             Returns: 
                 tuple (timeline_status, image_type, duration)
                 timeline_status: "has_timeline" 或 "no_timeline"
-                image_type: "dynamic", "static" 或 None
+                image_type: "animation", "dynamic", "static" 或 None
                 duration: float 或 None
             """
-            if "timeline" in content_str:  # 先檢查是否有timeline
-                # 檢查是否為static (沒有Timeline就是static)
-                if "Timeline" not in content_str:
-                    return "has_timeline", "static", None
+            timeline_xml = self.get_timeline_xml()
+            if not timeline_xml :  # 沒有timeline :: Check if there is a timeline
+                return "no_timeline", None, None
+            elif b'Timeline' not in timeline_xml:
+                return "has_timeline", "static", None
+            elif match := re.search(self._duration_pattern, timeline_xml):
+                if self._animation_pattern.search(timeline_xml):
+                    # A timeline with a guideObject interpolable is most likely an animation.
+                    return "has_timeline", "animation", float(match.group(1))
                 else:
-                    # 是dynamic，檢查duration
-                    if "duration" in content_str:
-                        dur_pos = content_str.find("duration")
-                        search_pos = dur_pos + len("duration")
-                        
-                        while search_pos < len(content_str):
-                            if content_str[search_pos].isdigit():
-                                num_start = search_pos
-                                num_end = num_start
-                                while num_end < len(content_str) and (content_str[num_end].isdigit() or content_str[num_end] == '.'):
-                                    num_end += 1
-                                try:
-                                    duration = float(content_str[num_start:num_end])
-                                    return "has_timeline", "dynamic", duration
-                                except ValueError:
-                                    return "has_timeline", "dynamic", None
-                            search_pos += 1
-                    return "has_timeline", "dynamic", None
-            return "no_timeline", None, None
+                    # Without a guideObject, it's most likely camera movement, sound effects or alpha/color changes.
+                    return "has_timeline", "dynamic", float(match.group(1))
+            else:
+                return "has_timeline", "dynamic", None
+            
+
 class App(TkinterDnD.Tk):
     def __init__(self):
         super().__init__()
@@ -174,11 +180,10 @@ class App(TkinterDnD.Tk):
     def process_file(self, file_path):
         with open(file_path, 'rb') as f:
             content = f.read()
-            content_str = content.decode('utf-8', errors='ignore')
         
         detector = TimelineDetector(file_path)
         
-        if not detector.is_scene_data(content_str):
+        if not detector.is_scene_data(content):
             messagebox.showerror("Error", "Please upload Scene Data only.")
             return
         
@@ -191,18 +196,23 @@ class App(TkinterDnD.Tk):
 
         self.show_preview(file_path)
         
-        timeline_status, image_type, duration = detector.check_timeline(content_str)
+        timeline_status, image_type, duration = detector.check_timeline(content)
         
         if timeline_status == "has_timeline":
             self.timeline_label.configure(text="has timeline", 
                                        foreground="green")
             if image_type == "static":
                 self.duration_label.configure(text="static image")
-            else:  # dynamic
-                if duration is not None:
-                    type_text = "GIF" if duration <= 10 else "movie"
+            elif image_type == "dynamic": 
+                if duration is None:
+                    self.duration_label.configure(text="dynamic image")
+                else:
                     self.duration_label.configure(
-                        text=f"{type_text} (duration:{duration}s)")
+                        text=f"dynamic scene (duration:{duration}s)")
+            else: # animation
+                type_text = "GIF" if duration <= 10 else "movie"
+                self.duration_label.configure(
+                    text=f"{type_text} (duration:{duration}s)")
         else:  # no timeline
             self.timeline_label.configure(text="no timeline", 
                                        foreground="red")
